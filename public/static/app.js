@@ -107,6 +107,9 @@ async function loadTherapeuticAreaChart() {
         }
       }
     });
+    
+    // window 객체에도 할당 (필터에서 접근 가능하도록)
+    window.therapeuticAreaChart = therapeuticAreaChart;
   } catch (error) {
     console.error('Failed to load therapeutic area chart:', error);
   }
@@ -167,6 +170,9 @@ async function loadSponsorsChart() {
         }
       }
     });
+    
+    // window 객체에도 할당 (필터에서 접근 가능하도록)
+    window.sponsorChart = sponsorsChart;
   } catch (error) {
     console.error('Failed to load sponsors chart:', error);
   }
@@ -477,7 +483,12 @@ function populateSelect(selectId, options) {
   const select = document.getElementById(selectId);
   if (!select) return;
   
-  // 기존 "전체" 옵션 유지하고 새 옵션 추가
+  // 기존 옵션 모두 제거 (첫 번째 "전체" 옵션 제외)
+  while (select.options.length > 1) {
+    select.remove(1);
+  }
+  
+  // 새 옵션 추가
   options.forEach(option => {
     const optionEl = document.createElement('option');
     optionEl.value = option;
@@ -508,18 +519,86 @@ async function applyFilters() {
   else if (category === 'orphan') currentFilters.is_orphan = 'Y';
   
   try {
+    // 필터된 데이터 조회
     const response = await axios.post('/api/approvals/filter', currentFilters);
-    renderApprovalsTable(response.data);
+    const filteredData = response.data;
+    
+    // 테이블 업데이트
+    renderApprovalsTable(filteredData);
     
     const info = document.getElementById('pagination-info');
-    info.textContent = `필터 결과: ${response.data.length}건`;
+    info.textContent = `필터 결과: ${filteredData.length}건`;
     
     // 페이지네이션 버튼 비활성화
     document.getElementById('prev-page').disabled = true;
     document.getElementById('next-page').disabled = true;
+    
+    // 필터된 데이터로 요약 카드 업데이트
+    updateSummaryCards(filteredData);
+    
+    // 필터된 데이터로 차트 업데이트
+    updateChartsWithFilteredData(filteredData);
+    
   } catch (error) {
     console.error('Filter failed:', error);
     alert('필터 적용에 실패했습니다.');
+  }
+}
+
+// 필터된 데이터로 요약 카드 업데이트
+function updateSummaryCards(data) {
+  const total = data.length;
+  const oncology = data.filter(item => item.is_oncology === 'Y').length;
+  const novel = data.filter(item => item.is_novel === 'Y').length;
+  const biosimilar = data.filter(item => item.is_biosimilar === 'Y').length;
+  const orphan = data.filter(item => item.is_orphan === 'Y').length;
+  
+  document.getElementById('total-count').textContent = total;
+  document.getElementById('oncology-count').textContent = oncology;
+  document.getElementById('novel-count').textContent = novel;
+  document.getElementById('biosimilar-count').textContent = biosimilar;
+  document.getElementById('orphan-count').textContent = orphan;
+}
+
+// 필터된 데이터로 차트 업데이트
+function updateChartsWithFilteredData(data) {
+  // 치료영역별 분포
+  const therapeuticAreaCounts = {};
+  data.forEach(item => {
+    if (item.therapeutic_area) {
+      therapeuticAreaCounts[item.therapeutic_area] = (therapeuticAreaCounts[item.therapeutic_area] || 0) + 1;
+    }
+  });
+  
+  const therapeuticAreaData = Object.entries(therapeuticAreaCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([area, count]) => ({ therapeutic_area: area, count }));
+  
+  // 제약사별 분포
+  const sponsorCounts = {};
+  data.forEach(item => {
+    if (item.sponsor) {
+      sponsorCounts[item.sponsor] = (sponsorCounts[item.sponsor] || 0) + 1;
+    }
+  });
+  
+  const sponsorData = Object.entries(sponsorCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([sponsor, count]) => ({ sponsor, count }));
+  
+  // 차트 업데이트
+  if (window.therapeuticAreaChart) {
+    window.therapeuticAreaChart.data.labels = therapeuticAreaData.map(d => d.therapeutic_area);
+    window.therapeuticAreaChart.data.datasets[0].data = therapeuticAreaData.map(d => d.count);
+    window.therapeuticAreaChart.update();
+  }
+  
+  if (window.sponsorChart) {
+    window.sponsorChart.data.labels = sponsorData.map(d => d.sponsor);
+    window.sponsorChart.data.datasets[0].data = sponsorData.map(d => d.count);
+    window.sponsorChart.update();
   }
 }
 
@@ -533,6 +612,10 @@ function resetFilters() {
   
   currentFilters = {};
   currentPage = 1;
+  
+  // 대시보드 전체 새로고침
+  loadSummary();
+  loadCharts();
   loadApprovals();
 }
 
