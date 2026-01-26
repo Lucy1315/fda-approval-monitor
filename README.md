@@ -1,238 +1,224 @@
 # FDA 승인 대시보드
 
-## 프로젝트 개요
+## 📊 프로젝트 개요
 - **이름**: FDA 승인 대시보드
-- **목표**: FDA 전문의약품 승인 현황을 시각화하고 분석하며 데이터를 관리하는 종합 대시보드
-- **주요 기능**:
-  - 📊 실시간 승인 통계 요약 (전체, 항암제, 신약, 바이오시밀러, 희귀의약품)
-  - 📈 치료영역별 분포 차트 (도넛 차트)
-  - 📊 제약사별 승인 건수 차트 (막대 차트)
-  - 📋 승인 목록 테이블 (페이지네이션)
-  - 🔍 제품명/주성분/제약사 검색 기능
-  - 🎯 고급 필터링 (승인월, 치료영역, 제약사, 승인유형, 구분)
-  - 📤 데이터 업로드 및 관리 (JSON API)
-  - 🔄 데이터 버전 관리 (백업/복원)
-  - ⏮️ 되돌리기 기능
-  - 📱 반응형 디자인 (모바일/태블릿/데스크톱)
+- **목표**: FDA 전문의약품 승인 데이터의 시각화 및 관리
+- **주요 기능**: 월별 데이터 누적, 고급 필터링, 버전 관리, 되돌리기
 
-## 공개 URL
+## 🌐 접속 정보
 - **대시보드**: https://3000-ijnyl7bekjyhth108ssjb-de59bda9.sandbox.novita.ai
-- **GitHub**: (배포 예정)
+- **GitHub**: (추후 연동 예정)
 
-## 기술 스택
-- **Backend**: Hono v4 (Lightweight Web Framework)
-- **Database**: Cloudflare D1 (SQLite)
-- **Frontend**: Vanilla JavaScript + TailwindCSS + Chart.js
-- **Deployment**: Cloudflare Pages
-- **Process Manager**: PM2
+## 📈 현재 데이터 현황
+- **총 레코드**: 48건
+  - 2025년 12월: 19건
+  - 2026년 1월: 29건
+- **항암제**: 8건
+- **신약**: 9건  
+- **바이오시밀러**: 6건
+- **희귀의약품**: 14건
 
-## 데이터 아키텍처
-
-### 데이터베이스 스키마 (D1 SQLite)
-```sql
-CREATE TABLE fda_approvals (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  approval_month TEXT,
-  approval_date TEXT,
-  nda_bla_number TEXT,
-  application_number REAL,
-  application_type TEXT,
-  product_name TEXT,
-  active_ingredient TEXT,
-  sponsor TEXT,
-  indication TEXT,
-  therapeutic_area TEXT,
-  is_oncology TEXT,
-  is_biosimilar TEXT,
-  is_novel TEXT,
-  is_orphan TEXT,
-  approval_type TEXT,
-  remarks TEXT,
-  fda_approval_page TEXT,
-  fda_drugs_url TEXT,
-  approval_letter TEXT,
-  source TEXT,
-  data_collection_date TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
+## 🗄️ 데이터 아키텍처
 
 ### 데이터 모델
-- **전체 승인**: 29건
-- **항암제**: 0건
-- **신약**: 1건
-- **바이오시밀러**: 3건
-- **희귀의약품**: 5건
+```sql
+-- 주요 테이블: fda_approvals (FDA 승인 데이터)
+CREATE TABLE fda_approvals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  approval_month TEXT,           -- 승인 월 (YYYY-MM)
+  approval_date TEXT,             -- 승인일
+  nda_bla_number TEXT,            -- NDA/BLA 번호
+  product_name TEXT,              -- 제품명
+  sponsor TEXT,                   -- 제약사
+  indication TEXT,                -- 적응증
+  therapeutic_area TEXT,          -- 치료영역
+  is_oncology TEXT,               -- 항암제 여부 (Y/N)
+  is_novel TEXT,                  -- 신약 여부 (Y/N)
+  is_biosimilar TEXT,             -- 바이오시밀러 여부 (Y/N)
+  is_orphan TEXT,                 -- 희귀의약품 여부 (Y/N)
+  ...
+)
 
-### 데이터 소스
-- FDA Official + Drugs.com + ASCO
-- 데이터 수집일: 2026-01-26
+-- 버전 관리: data_versions (버전 히스토리)
+-- 백업 데이터: fda_approvals_backup (복원용)
+```
 
-## API 엔드포인트
+### 저장소 서비스
+- **Cloudflare D1**: SQLite 기반 분산 데이터베이스
+- **로컬 개발**: `.wrangler/state/v3/d1` (로컬 SQLite)
 
-### 대시보드 통계
+### 데이터 플로우
+1. **엑셀 업로드** → Python 스크립트로 JSON 변환
+2. **API 업로드** → 자동 백업 생성 → 데이터 추가 (APPEND)
+3. **데이터 조회** → 필터링 (월/치료영역/제약사 등)
+4. **버전 관리** → 언제든 이전 버전으로 복원 가능
+
+## 🎯 핵심 기능
+
+### 1. 월별 데이터 누적 (APPEND 방식)
+- **기존 데이터 유지**: 새로운 월 데이터를 업로드하면 기존 데이터에 추가
+- **중복 방지**: 동일한 `approval_month` + `nda_bla_number` 조합은 업데이트
+- **예시**: 12월 데이터(19건) 보유 → 1월 데이터(29건) 업로드 → 총 48건
+
+### 2. 고급 필터링
+- **승인 월**: 전체 / 2025-12 / 2026-01 등
+- **치료영역**: 항암제, 당뇨병 치료제 등
+- **제약사**: 특정 제약사 선택
+- **승인 유형**: 정규승인, 신속승인 등
+- **구분**: 항암제 / 신약 / 바이오시밀러 / 희귀의약품
+
+### 3. 버전 관리 및 되돌리기
+- **자동 백업**: 새 데이터 업로드 전 자동 백업 생성
+- **버전 히스토리**: 모든 업로드 기록 보관
+- **원클릭 복원**: 이전 버전으로 언제든 되돌리기 가능
+
+### 4. 데이터 관리 탭
+- **엑셀 업로드**: 웹 UI를 통한 쉬운 데이터 업로드
+- **버전 정보 입력**: 버전명, 월, 설명 입력
+- **업로드 상태**: 진행 상황 실시간 표시
+
+## 👥 사용자 가이드
+
+### 새로운 월 데이터 업로드 (웹 UI)
+1. 대시보드 접속 → **데이터 관리** 탭 클릭
+2. 엑셀 파일 선택 (FDA 승인 데이터)
+3. 버전 정보 입력:
+   - 버전명: 예) "2026년 2월 FDA 승인"
+   - 승인 월: 예) "2026-02"
+   - 설명: 선택사항
+4. **업로드** 버튼 클릭
+5. 업로드 완료 후 대시보드 탭에서 확인
+
+### 새로운 월 데이터 업로드 (API)
 ```bash
-# 요약 통계
-GET /api/dashboard/summary
-# Response: { total, oncology, novel, biosimilar, orphan }
+# 1. 엑셀을 JSON으로 변환
+python3 scripts/convert_excel.py input.xlsx output.json
 
-# 치료영역별 분포
-GET /api/dashboard/therapeutic-area
-# Response: [{ therapeutic_area, count }, ...]
-
-# 제약사별 승인 건수
-GET /api/dashboard/sponsors?limit=10
-# Response: [{ sponsor, count }, ...]
-
-# 월별 승인 추이
-GET /api/dashboard/monthly-trend
-# Response: [{ approval_month, count }, ...]
-
-# 승인 유형별 분포
-GET /api/dashboard/approval-types
-# Response: [{ approval_type, count }, ...]
+# 2. API로 업로드
+curl -X POST http://localhost:3000/api/data/upload \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": [...],
+    "version_name": "2026년 2월 FDA 승인",
+    "month": "2026-02",
+    "description": "2026년 2월 데이터"
+  }'
 ```
 
-### 승인 데이터 조회
-```bash
-# 전체 목록 (페이지네이션)
-GET /api/approvals?page=1&limit=20
-# Response: { data: [...], pagination: { page, limit, total, totalPages } }
+### 필터 사용법
+1. **대시보드** 탭의 필터 섹션
+2. 원하는 조건 선택:
+   - 승인 월: "전체" 선택 시 모든 월 조회
+   - 치료영역, 제약사, 승인 유형 등 조합 가능
+3. **필터 적용** 버튼 클릭
+4. 결과 확인 및 필요 시 **초기화**
 
-# 상세 정보
-GET /api/approvals/:id
-# Response: { id, product_name, sponsor, ... }
+### 데이터 되돌리기
+1. **버전 관리** 탭 클릭
+2. 버전 히스토리에서 복원할 버전 선택
+3. **되돌리기** 버튼 클릭
+4. 확인 후 대시보드에서 데이터 확인
 
-# 검색
-GET /api/approvals/search/:query
-# Response: [{ ... }, ...]
+### 현재 데이터 백업
+1. **데이터 관리** 탭 → **현재 데이터 백업** 섹션
+2. 백업 정보 입력 (버전명, 월, 설명)
+3. **백업** 버튼 클릭
 
-# 필터링
-POST /api/approvals/filter
-# Body: { therapeutic_area, is_oncology, is_novel, is_biosimilar, sponsor }
-# Response: [{ ... }, ...]
-```
-
-## 사용자 가이드
-
-### 대시보드 기능
-1. **요약 통계 카드**: 메인 화면 상단에서 전체 승인 건수 및 주요 카테고리별 통계 확인
-2. **차트**:
-   - 치료영역별 분포: 도넛 차트로 시각화
-   - 제약사별 승인 건수: 막대 차트로 Top 10 표시
-3. **승인 목록 테이블**:
-   - 페이지네이션으로 20개씩 표시
-   - 검색창에서 제품명, 주성분, 제약사, 적응증 검색
-   - 상세 버튼 클릭 시 모달로 전체 정보 표시
-4. **뱃지**: 항암제, 신약, 바이오시밀러, 희귀의약품 시각적 표시
-
-### 로컬 개발 환경 설정
-```bash
-# 1. 의존성 설치 (이미 완료됨)
-npm install
-
-# 2. 데이터베이스 마이그레이션
-npm run db:migrate:local
-
-# 3. 데이터 시드
-npm run db:seed
-
-# 4. 빌드
-npm run build
-
-# 5. 개발 서버 시작 (PM2)
-pm2 start ecosystem.config.cjs
-
-# 6. 서버 테스트
-curl http://localhost:3000/api/dashboard/summary
-
-# 7. 데이터베이스 리셋 (필요시)
-npm run db:reset
-```
-
-### 프로덕션 배포
-
-#### Cloudflare Pages 배포
-```bash
-# 1. Cloudflare API 키 설정
-# setup_cloudflare_api_key 도구 사용 또는 Deploy 탭에서 설정
-
-# 2. 프로덕션 D1 데이터베이스 생성
-npx wrangler d1 create webapp-production
-# database_id를 wrangler.jsonc에 입력
-
-# 3. 마이그레이션 실행 (프로덕션)
-npm run db:migrate:prod
-
-# 4. 데이터 임포트 (프로덕션)
-# seed.sql을 수정하여 프로덕션 데이터로 업데이트 후
-npx wrangler d1 execute webapp-production --file=./seed.sql
-
-# 5. Cloudflare Pages 프로젝트 생성
-npx wrangler pages project create webapp \
-  --production-branch main \
-  --compatibility-date 2024-01-01
-
-# 6. 배포
-npm run deploy:prod
-```
-
-## 프로젝트 구조
-```
-webapp/
-├── src/
-│   └── index.tsx              # Hono 백엔드 API
-├── public/
-│   └── static/
-│       └── app.js             # 프론트엔드 JavaScript
-├── migrations/
-│   └── 0001_create_fda_table.sql  # D1 마이그레이션
-├── scripts/
-│   └── import_excel_to_d1.py  # 엑셀 → SQL 변환 스크립트
-├── seed.sql                   # 초기 데이터 (29건)
-├── ecosystem.config.cjs       # PM2 설정
-├── wrangler.jsonc             # Cloudflare 설정
-├── package.json               # NPM 스크립트
-└── README.md                  # 이 파일
-```
-
-## 완료된 기능
-✅ Hono + Cloudflare Pages 프로젝트 구조  
-✅ D1 데이터베이스 스키마 및 마이그레이션  
-✅ 엑셀 데이터 임포트 (29건)  
-✅ RESTful API 엔드포인트 (13개)  
-✅ 대시보드 요약 통계 API  
-✅ 치료영역별/제약사별 차트 데이터 API  
-✅ 승인 목록 조회 (페이지네이션)  
-✅ 검색 및 고급 필터링 기능  
-✅ 필터 옵션 동적 로딩  
-✅ Chart.js 기반 시각화 (도넛 차트, 막대 차트)  
-✅ 반응형 UI (TailwindCSS)  
-✅ 상세 정보 모달  
-✅ 탭 네비게이션 (대시보드/데이터 관리/버전 관리)  
-✅ 데이터 버전 관리 시스템  
-✅ 백업 및 복원 기능  
-✅ 되돌리기 기능  
-✅ 데이터 업로드 API (JSON)  
-✅ 로컬 개발 서버 테스트  
-
-## 향후 개선 사항
-- [ ] 엑셀 파일 직접 업로드 (파일 파싱)
-- [ ] GitHub 저장소 연동 및 코드 푸시
-- [ ] Cloudflare Pages 프로덕션 배포
-- [ ] 월별/연도별 필터링 기능 확장
-- [ ] 데이터 익스포트 기능 (CSV, Excel)
-- [ ] 승인 추이 라인 차트
-- [ ] 사용자 인증 및 권한 관리
-- [ ] 데이터 자동 업데이트 (FDA API 연동)
-
-## 배포 상태
-- **플랫폼**: Cloudflare Pages (준비 중)
-- **현재 상태**: ✅ 로컬 개발 완료
+## 🚀 배포 정보
+- **플랫폼**: Cloudflare Pages
+- **상태**: ✅ 개발 서버 실행 중
+- **기술 스택**: 
+  - Backend: Hono (TypeScript)
+  - Frontend: Vanilla JS + TailwindCSS + Chart.js
+  - Database: Cloudflare D1 (SQLite)
+  - Deployment: Cloudflare Workers
 - **마지막 업데이트**: 2026-01-26
 
-## 라이선스
-MIT License
+## 📋 API 엔드포인트
 
-## 작성자
-AI-powered Development with Hono + Cloudflare Pages
+### 대시보드 통계
+- `GET /api/dashboard/summary` - 요약 통계
+- `GET /api/dashboard/therapeutic-area` - 치료영역별 분포
+- `GET /api/dashboard/sponsors` - 제약사별 승인 건수
+- `GET /api/dashboard/monthly-trend` - 월별 트렌드
+- `GET /api/dashboard/approval-types` - 승인 유형별 분포
+
+### 데이터 조회
+- `GET /api/approvals?page=1&limit=20` - 승인 목록 (페이지네이션)
+- `GET /api/approvals/:id` - 상세 정보
+- `GET /api/approvals/search/:query` - 검색
+- `POST /api/approvals/filter` - 필터링
+
+### 필터 옵션
+- `GET /api/filters/options` - 필터 옵션 조회
+
+### 버전 관리
+- `GET /api/versions` - 버전 히스토리 조회
+- `POST /api/versions/backup` - 수동 백업 생성
+- `POST /api/versions/restore/:versionId` - 버전 복원
+
+### 데이터 업로드
+- `POST /api/data/upload` - 새 데이터 업로드 (APPEND 방식)
+
+## 💻 개발 명령어
+
+### 서버 관리
+```bash
+npm run build              # 프로젝트 빌드
+pm2 start ecosystem.config.cjs  # PM2로 서버 시작
+pm2 restart webapp         # 서버 재시작
+pm2 logs webapp --nostream # 로그 확인
+pm2 list                   # PM2 앱 목록
+npm run test               # API 테스트 (curl)
+```
+
+### 데이터베이스
+```bash
+npm run db:migrate:local   # 로컬 마이그레이션 적용
+npm run db:seed            # 시드 데이터 삽입
+npm run db:reset           # DB 초기화 및 재구성
+npm run db:console:local   # 로컬 DB 콘솔
+```
+
+### Git 명령어
+```bash
+git add -A                 # 모든 변경사항 추가
+git commit -m "메시지"     # 커밋
+git log --oneline          # 커밋 히스토리
+git status                 # 상태 확인
+```
+
+## 🔄 변경 이력
+
+### 2026-01-26 - 월별 데이터 누적 기능
+- **기능 개선**: 데이터 업로드 방식을 덮어쓰기 → 누적(APPEND)으로 변경
+- **중복 방지**: 동일 월+NDA/BLA 번호는 업데이트
+- **필터 개선**: "전체" 옵션으로 모든 월 데이터 조회 가능
+- **데이터 현황**: 2025-12 (19건) + 2026-01 (29건) = 총 48건
+
+### 2026-01-26 - 초기 배포
+- Hono + Cloudflare Pages 프로젝트 구조
+- D1 데이터베이스 스키마 및 마이그레이션
+- RESTful API 엔드포인트 (13개)
+- Chart.js 기반 대시보드 UI
+- 검색 및 필터링 기능
+- 반응형 디자인
+
+## 📝 TODO
+
+### 진행 중
+- [ ] 월별 통계 차트 추가
+- [ ] 데이터 엑스포트 (Excel, CSV)
+- [ ] GitHub 연동 및 자동 배포
+
+### 계획
+- [ ] Cloudflare Pages 프로덕션 배포
+- [ ] 고급 검색 (정규식 지원)
+- [ ] 사용자 인증 (선택사항)
+- [ ] 알림 기능 (새 승인 알림)
+
+## 🤝 기여
+프로젝트 개선 제안이나 버그 리포트는 이슈로 등록해 주세요.
+
+## 📄 라이선스
+MIT License
