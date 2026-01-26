@@ -22,6 +22,11 @@ def main():
     # English 시트 읽기
     print("📖 엑셀 파일 읽는 중...")
     df = pd.read_excel(excel_file, sheet_name='English')
+    
+    # 색상 범례 행 제거 (마지막 3개 행)
+    # approval_date가 날짜 형식이 아닌 행 제거
+    df = df[df['approval_date'].astype(str).str.match(r'^\d{4}-\d{2}-\d{2}$', na=False)]
+    
     print(f"✅ {len(df)}개 레코드 로드 완료")
     
     # SQL INSERT 문 생성
