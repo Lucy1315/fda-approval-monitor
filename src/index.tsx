@@ -508,36 +508,74 @@ app.post('/api/data/upload', async (c) => {
       `).bind(backupVersionId).run();
     }
     
-    // 2. 기존 데이터 삭제
-    await DB.prepare(`DELETE FROM fda_approvals`).run();
-    
-    // 3. 새 데이터 삽입
+    // 2. 새 데이터 추가 (APPEND 방식 - 기존 데이터 유지)
+    // 중복 방지: 동일한 approval_month + nda_bla_number 조합은 업데이트
     for (const record of data) {
-      await DB.prepare(`
-        INSERT INTO fda_approvals (
-          approval_month, approval_date, nda_bla_number, application_number,
-          application_type, product_name, active_ingredient, sponsor,
-          indication, therapeutic_area, is_oncology, is_biosimilar,
-          is_novel, is_orphan, approval_type, remarks,
-          fda_approval_page, fda_drugs_url, approval_letter,
-          source, data_collection_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        record.approval_month, record.approval_date, record.nda_bla_number,
-        record.application_number, record.application_type, record.product_name,
-        record.active_ingredient, record.sponsor, record.indication,
-        record.therapeutic_area, record.is_oncology, record.is_biosimilar,
-        record.is_novel, record.is_orphan, record.approval_type,
-        record.remarks, record.fda_approval_page, record.fda_drugs_url,
-        record.approval_letter, record.source, record.data_collection_date
-      ).run();
+      // 기존 레코드 확인
+      const existingRecord = await DB.prepare(`
+        SELECT id FROM fda_approvals 
+        WHERE approval_month = ? AND nda_bla_number = ?
+      `).bind(record.approval_month, record.nda_bla_number).first();
+      
+      if (existingRecord) {
+        // 기존 레코드 업데이트
+        await DB.prepare(`
+          UPDATE fda_approvals SET
+            approval_date = ?, application_number = ?, application_type = ?,
+            product_name = ?, active_ingredient = ?, sponsor = ?, indication = ?,
+            therapeutic_area = ?, is_oncology = ?, is_biosimilar = ?, is_novel = ?,
+            is_orphan = ?, approval_type = ?, remarks = ?, fda_approval_page = ?,
+            fda_drugs_url = ?, approval_letter = ?, source = ?, data_collection_date = ?
+          WHERE id = ?
+        `).bind(
+          record.approval_date, record.application_number, record.application_type,
+          record.product_name, record.active_ingredient, record.sponsor, record.indication,
+          record.therapeutic_area, record.is_oncology, record.is_biosimilar, record.is_novel,
+          record.is_orphan, record.approval_type, record.remarks, record.fda_approval_page,
+          record.fda_drugs_url, record.approval_letter, record.source, record.data_collection_date,
+          existingRecord.id
+        ).run();
+      } else {
+        // 새 레코드 삽입
+        await DB.prepare(`
+          INSERT INTO fda_approvals (
+            approval_month, approval_date, nda_bla_number, application_number,
+            application_type, product_name, active_ingredient, sponsor,
+            indication, therapeutic_area, is_oncology, is_biosimilar,
+            is_novel, is_orphan, approval_type, remarks,
+            fda_approval_page, fda_drugs_url, approval_letter,
+            source, data_collection_date
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          record.approval_month, record.approval_date, record.nda_bla_number,
+          record.application_number, record.application_type, record.product_name,
+          record.active_ingredient, record.sponsor, record.indication,
+          record.therapeutic_area, record.is_oncology, record.is_biosimilar,
+          record.is_novel, record.is_orphan, record.approval_type,
+          record.remarks, record.fda_approval_page, record.fda_drugs_url,
+          record.approval_letter, record.source, record.data_collection_date
+        ).run();
+      }
     }
+    
+    // 3. 최신 데이터 개수 확인
+    const newCountResult = await DB.prepare(`
+      SELECT COUNT(*) as count FROM fda_approvals
+    `).first();
+    
+    const newRecordCount = newCountResult?.count || 0;
     
     // 4. 새 버전 생성
     const newVersionResult = await DB.prepare(`
       INSERT INTO data_versions (version_name, month, record_count, description, is_active)
       VALUES (?, ?, ?, ?, ?)
-    `).bind(version_name, month, data.length, description || '', 1).run();
+    `).bind(
+      version_name, 
+      month, 
+      newRecordCount, 
+      description || `${version_name} (총 ${newRecordCount}건, 추가 ${data.length}건)`, 
+      1
+    ).run();
     
     const newVersionId = newVersionResult.meta.last_row_id;
     
@@ -557,7 +595,8 @@ app.post('/api/data/upload', async (c) => {
     return c.json({ 
       success: true,
       version_id: newVersionId,
-      record_count: data.length,
+      record_count: newRecordCount,
+      added_count: data.length,
       old_record_count: oldRecordCount
     });
   } catch (error) {

@@ -477,7 +477,7 @@ function populateSelect(selectId, options) {
   const select = document.getElementById(selectId);
   if (!select) return;
   
-  // 기존 옵션 유지하고 새 옵션 추가
+  // 기존 "전체" 옵션 유지하고 새 옵션 추가
   options.forEach(option => {
     const optionEl = document.createElement('option');
     optionEl.value = option;
@@ -496,10 +496,11 @@ async function applyFilters() {
   const approvalType = document.getElementById('filter-approval-type').value;
   const category = document.getElementById('filter-category').value;
   
-  if (month) currentFilters.approval_month = month;
-  if (therapeuticArea) currentFilters.therapeutic_area = therapeuticArea;
-  if (sponsor) currentFilters.sponsor = sponsor;
-  if (approvalType) currentFilters.approval_type = approvalType;
+  // "전체"가 아닌 경우에만 필터 추가
+  if (month && month !== '전체') currentFilters.approval_month = month;
+  if (therapeuticArea && therapeuticArea !== '전체') currentFilters.therapeutic_area = therapeuticArea;
+  if (sponsor && sponsor !== '전체') currentFilters.sponsor = sponsor;
+  if (approvalType && approvalType !== '전체') currentFilters.approval_type = approvalType;
   
   if (category === 'oncology') currentFilters.is_oncology = 'Y';
   else if (category === 'novel') currentFilters.is_novel = 'Y';
