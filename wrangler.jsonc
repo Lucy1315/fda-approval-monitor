@@ -10,7 +10,7 @@
     {
       "binding": "DB",
       "database_name": "fda-dashboard-production",
-      "database_id": "TO_BE_CREATED"
+      "database_id": "e53bc366-9569-45bb-9dea-6105f1bc4a05"
     }
   ]
 }
