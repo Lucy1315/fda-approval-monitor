@@ -9,12 +9,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "fda-dashboard-production",
-      "database_id": "e53bc366-9569-45bb-9dea-6105f1bc4a05"
-    },
-    {
-      "binding": "webapp-production",
-      "database_name": "local-webapp-production",
+      "database_name": "webapp-production",
       "database_id": "local-dev-database-id"
     }
   ]
