@@ -150,14 +150,13 @@ curl -X POST http://localhost:3000/api/data/upload \
   - Frontend: Vanilla JS + TailwindCSS + Chart.js
   - Database: Cloudflare D1 (SQLite)
   - Deployment: Cloudflare Workers
-- **마지막 업데이트**: 2026-01-27
+- **마지막 업데이트**: 2026-01-28
 
-## ✅ 최근 수정 사항 (2026-01-27)
-- **데이터베이스 바인딩 수정**: wrangler.jsonc의 중복 D1 바인딩 제거
-- **로컬 개발 환경 개선**: 데이터베이스 설정 정상화
-- **테스트 데이터 추가**: 2025-12월 및 2026-01월 데이터 (총 30건)
-- **월별 필터 정상 작동**: 전체 / 2025-12 / 2026-01 필터 테스트 완료
-- **GitHub 연동 완료**: https://github.com/Lucy1315/fda-approval-monitor
+## ✅ 최근 수정 사항 (2026-01-28)
+- **Submission 정보 추가**: 대시보드 비고란에 최초승인/변경승인 구분 추가
+- **Submission Classification**: 라벨링 변경, 제조공정 변경, 효능 추가 등 상세 분류  
+- **데이터 매핑**: DrugsFDA CSV 기반 679개 NDA/BLA 매핑 데이터 생성
+- **상세보기 개선**: 비고란에 Submission 정보 자동 반영
 
 ## 📋 API 엔드포인트
 
